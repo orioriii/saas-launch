@@ -16,6 +16,7 @@
 ### 1. 準備するもの
 
 - Node.js 20 以上（下の手順でインストールできます）
+- Git（下の手順でインストールできます／GitHub からファイル一式を取得するのに使います）
 - デプロイしたいアプリ（バックエンドと フロントのディレクトリ）
 - （任意）Cloudflare / Vercel アカウント … 持っていなくても、案内に沿って作れます
 
@@ -32,16 +33,18 @@ node -v
 
 **Mac の場合**
 
-- 方法A（かんたん・推奨）: 公式サイト <https://nodejs.org/ja> を開き、「**LTS**」版をダウンロードして、案内に沿ってインストール
-- 方法B（Homebrew がある人）:
+- 方法A（かんたん・推奨 / **Homebrew 不要**）: 公式サイト <https://nodejs.org/ja> を開き、「**LTS**」版をダウンロードして、案内に沿ってインストール
+- 方法B（Homebrew がある人だけ）:
   ```bash
   brew install node
   ```
 
+> Homebrew を持っていない人は、**方法A だけでOK**です（brew のインストールは不要）。
+
 **Windows の場合**
 
-- 方法A（かんたん・推奨）: 公式サイト <https://nodejs.org/ja> を開き、「**LTS**」版をダウンロードして、案内に沿ってインストール
-- 方法B（winget がある人）:
+- 方法A（かんたん・推奨 / **winget 不要**）: 公式サイト <https://nodejs.org/ja> を開き、「**LTS**」版をダウンロードして、案内に沿ってインストール
+- 方法B（winget がある人だけ）:
   ```powershell
   winget install OpenJS.NodeJS.LTS
   ```
@@ -50,18 +53,89 @@ node -v
 
 > `npm`（後の手順で使うコマンド）は Node.js に同梱されているので、別途インストールは不要です。
 
-### 2. インストール & 実行
+#### Git のインストール
+
+GitHub からこのツール一式を取得（clone）するために使います。まず入っているか確認します:
 
 ```bash
-# このハーネスのディレクトリで
-npm install
-npm run build
-
-# あなたのプロジェクトのルートで実行（harness.config.json を置く場所）
-saas-launch setup
+git --version
 ```
 
-> グローバルに入れずに試す場合は、ハーネスのディレクトリで `npm run setup`（= `tsx src/index.ts setup`）でも動きます。
+`git version 2.x.x` のように表示されればOK。次の「リポジトリを入手する」へ進んでください。
+表示されなければ、以下の手順でインストールします。
+
+**Mac の場合**
+
+- 方法A（かんたん・推奨 / **Homebrew 不要**）: ターミナルで `git --version` を実行すると、未インストールなら「開発者ツールをインストールしますか？」というダイアログが出るので「インストール」を押す
+- 方法B（Homebrew がある人だけ）:
+  ```bash
+  brew install git
+  ```
+
+> Homebrew を持っていない人は、**方法A だけでOK**です（brew のインストールは不要）。
+
+**Windows の場合**
+
+- 方法A（かんたん・推奨 / **winget 不要**）: 公式サイト <https://git-scm.com/download/win> を開き、インストーラーをダウンロードして、案内に沿ってインストール（設定はすべて既定のままでOK）
+- 方法B（winget がある人だけ）:
+  ```powershell
+  winget install Git.Git
+  ```
+
+インストール後、**ターミナルを開き直してから** もう一度 `git --version` で表示されることを確認してください。
+
+#### リポジトリを入手する（clone）
+
+GitHub からこのツール一式を、自分のパソコンにコピーします。
+
+1. GitHub のリポジトリページを開く
+2. 緑色の「**< > Code**」ボタンを押し、「**HTTPS**」のタブで表示される URL をコピー
+3. ターミナルで、ファイルを置きたい場所へ移動してから clone します:
+
+```bash
+# 例: ホーム直下に置く場合
+cd ~
+
+# コピーした URL に置き換えて実行
+git clone https://github.com/orioriii/saas-launch.git
+
+# 作成されたフォルダに入る（フォルダ名はリポジトリ名になります）
+cd saas-launch
+```
+
+> clone すると、リポジトリ名のフォルダが作られ、その中にこのツール一式が入ります。
+> 以降のコマンドは、基本的にこのフォルダの中で実行します。
+
+### 2. インストール & 実行
+
+先ほど clone して `cd` で入ったフォルダの中で、続けて次を実行します。
+
+```bash
+# （念のため）clone したフォルダの中にいることを確認
+#   Mac/Linux: pwd  /  Windows: cd
+# package.json が見えていればOK
+
+# 1. 必要な部品をインストール
+npm install
+
+# 2. ツールをビルド（動く形に変換）
+npm run build
+```
+
+ここまでで、このフォルダの中で `npm run setup` などのコマンドが使えるようになります。
+
+```bash
+# 3. デプロイを開始（このフォルダの中で実行）
+npm run setup
+```
+
+> **どこで実行するの？**
+> `harness.config.json`（何をどこにデプロイするかの設定）は、clone したこのフォルダの中に置きます。
+> 無い場合は `npm run setup` の実行時に、対話ウィザードが自動で作成します。
+>
+> **`saas-launch` コマンドとして使いたい場合**
+> このフォルダで一度 `npm link` を実行すると、どこからでも `saas-launch setup` / `saas-launch status` /
+> `saas-launch doctor` の形で呼べるようになります（`npm run setup` と同じ動作です）。
 
 ### 3. あとは質問に答えるだけ
 
