@@ -40,5 +40,11 @@
   },
   "wiring": {
     "backendAllowedOriginVar": "ALLOWED_ORIGIN"
+  },
+  "auth": {
+    "mode": "ask",
+    "provider": "email-password",
+    "email": { "service": "resend", "fromVar": "EMAIL_FROM" },
+    "session": "d1-cookie"
   }
 }

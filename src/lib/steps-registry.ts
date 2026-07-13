@@ -41,6 +41,15 @@ export function buildSteps(config: HarnessConfig): StepMeta[] {
       phase: "Cloudflare（バックエンド）",
       requires: [],
     });
+
+    if (config.backend.d1.schemaFile) {
+      steps.push({
+        id: "cloudflare-migrate",
+        title: "D1 スキーマ適用（テーブル作成）",
+        phase: "Cloudflare（バックエンド）",
+        requires: [],
+      });
+    }
   }
 
   const secretNames = config.backend.secrets.map((s) => s.name);

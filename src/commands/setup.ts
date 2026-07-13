@@ -20,6 +20,7 @@ import {
   type SetupState,
 } from "../lib/state.js";
 import { buildSteps } from "../lib/steps-registry.js";
+import { prepareAuth } from "../steps/auth.js";
 import type { StepContext } from "../steps/context.js";
 import { STEP_IMPLEMENTATIONS } from "../steps/index.js";
 
@@ -46,7 +47,11 @@ export async function runSetup(
   // 1. 設定ファイルの用意（無ければ対話ウィザードで作成）
   const config = await ensureConfig(repoDir);
 
-  // 2. 状態を読み込み、再開かどうか判定
+  // 2. 認証の前処理：ログイン画面が無ければ実装するかヒアリングし、
+  //    採用時は config(メモリ)に D1/シークレット/スキーマを反映してから steps を組む。
+  await prepareAuth(config, repoDir);
+
+  // 3. 状態を読み込み、再開かどうか判定
   const state = loadState(repoDir);
   state.projectName = config.projectName;
 
@@ -219,6 +224,13 @@ async function ensureConfig(repoDir: string): Promise<HarnessConfig> {
       ],
     },
     wiring: { backendAllowedOriginVar: "ALLOWED_ORIGIN" },
+    // ログイン画面が無ければ、認証を実装するかを setup 中にヒアリングする
+    auth: {
+      mode: "ask",
+      provider: "email-password",
+      email: { service: "resend", fromVar: "EMAIL_FROM" },
+      session: "d1-cookie",
+    },
   };
 
   writeFileSync(getConfigPath(repoDir), JSON.stringify(config, null, 2) + "\n");

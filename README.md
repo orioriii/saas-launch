@@ -8,6 +8,7 @@
 - **失敗しても大丈夫** → 同じコマンドをもう一度実行すれば、**続きから**再開できます
 - **今どこ？が一目でわかる** → 進捗が可視化されます
 - **連携チェック付き** → 「どこの連携が足りていないか」を診断できます
+- **認証もワンストップ** → ログイン画面が無ければ「メール＋パスワード認証を入れますか？」とヒアリングし、雛形まで自動配置（[docs/04-認証.md](docs/04-認証.md)）
 
 ---
 
@@ -216,11 +217,17 @@ SaaS ローンチ進捗  [2/8 完了]
       { "name": "NEXT_PUBLIC_API_URL", "fromBackendUrl": true }  // バックエンドURLを自動注入
     ]
   },
-  "wiring": { "backendAllowedOriginVar": "ALLOWED_ORIGIN" }       // CORS 許可オリジンを入れる変数
+  "wiring": { "backendAllowedOriginVar": "ALLOWED_ORIGIN" },      // CORS 許可オリジンを入れる変数
+  "auth": {                                                       // 認証（省略可）
+    "mode": "ask",                                                //   ask=ログイン画面が無ければ実装するかヒアリング
+    "provider": "email-password",
+    "email": { "service": "resend", "fromVar": "EMAIL_FROM" },
+    "session": "d1-cookie"                                        //   D1セッション＋httpOnly Cookie（セキュア）
+  }
 }
 ```
 
-各項目の意味は [docs/00-はじめに.md](docs/00-はじめに.md) を参照してください。
+各項目の意味は [docs/00-はじめに.md](docs/00-はじめに.md)、認証は [docs/04-認証.md](docs/04-認証.md) を参照してください。
 
 ---
 
@@ -244,6 +251,7 @@ SaaS ローンチ進捗  [2/8 完了]
 - [docs/01-Cloudflare登録.md](docs/01-Cloudflare登録.md) — Cloudflare アカウント作成〜ログイン
 - [docs/02-Vercel登録.md](docs/02-Vercel登録.md) — Vercel アカウント作成〜ログイン
 - [docs/03-トラブルシューティング.md](docs/03-トラブルシューティング.md) — よくあるエラーと対処
+- [docs/04-認証.md](docs/04-認証.md) — メール＋パスワード認証の実装（登録→メール認証→ログイン）
 
 ## Claude Code / AI エージェント連携
 

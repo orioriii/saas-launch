@@ -27,7 +27,35 @@ const D1Schema = z.object({
   databaseName: z.string().optional(),
   /** wrangler.toml 上の binding 名（既定 DB） */
   wranglerBinding: z.string().default("DB"),
+  /**
+   * 適用する SQL スキーマ/マイグレーションファイル（repoDir からの相対パス）。
+   * 指定すると cloudflare-migrate ステップが `wrangler d1 execute --file` で流す。
+   * 認証を有効化すると、認証用スキーマがここに自動設定される。
+   */
+  schemaFile: z.string().optional(),
 });
+
+/**
+ * 認証（メール＋パスワード → メール認証 → ログイン）の設定。
+ * - off : 何もしない
+ * - on  : 認証を必ず有効化（雛形コピー＋必要シークレット＋D1＋スキーマ）
+ * - ask : フロントにログイン画面が無ければ、実装するかを setup 時にヒアリングする
+ */
+const AuthSchema = z
+  .object({
+    mode: z.enum(["off", "on", "ask"]).default("off"),
+    provider: z.literal("email-password").default("email-password"),
+    email: z
+      .object({
+        service: z.literal("resend").default("resend"),
+        /** 送信元アドレスを保持するシークレット/変数名 */
+        fromVar: z.string().default("EMAIL_FROM"),
+      })
+      .default({ service: "resend", fromVar: "EMAIL_FROM" }),
+    /** セッション方式（D1 セッション＋httpOnly Cookie：失効可能でセキュア） */
+    session: z.literal("d1-cookie").default("d1-cookie"),
+  })
+  .optional();
 
 const BackendSchema = z.object({
   /** バックエンドのディレクトリ（wrangler をここで実行する） */
@@ -71,11 +99,13 @@ export const HarnessConfigSchema = z.object({
   backend: BackendSchema,
   frontend: FrontendSchema,
   wiring: WiringSchema,
+  auth: AuthSchema,
 });
 
 export type HarnessConfig = z.infer<typeof HarnessConfigSchema>;
 export type SecretConfig = z.infer<typeof SecretSchema>;
 export type FrontendEnvConfig = z.infer<typeof FrontendEnvSchema>;
+export type AuthConfig = NonNullable<z.infer<typeof AuthSchema>>;
 
 export const CONFIG_FILENAME = "harness.config.json";
 
