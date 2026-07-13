@@ -1,0 +1,44 @@
+{
+  "$schema": "./harness.config.schema (see docs/00-はじめに.md)",
+  "projectName": "my-saas",
+  "backend": {
+    "dir": "apps/api",
+    "platform": "cloudflare-workers",
+    "deployCommand": "npx wrangler deploy",
+    "healthPath": "/health",
+    "d1": {
+      "enabled": true,
+      "databaseName": "my-saas-db",
+      "wranglerBinding": "DB"
+    },
+    "secrets": [
+      {
+        "name": "API_KEY",
+        "generate": true,
+        "prompt": "API 認証キー（Enter で自動生成）",
+        "howto": "空欄で Enter を押すと安全なランダムキーを自動生成します。"
+      },
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "prompt": "Stripe シークレットキー",
+        "howto": "Stripe ダッシュボード → 開発者 → API キー → シークレットキー（sk_live_... または sk_test_...）",
+        "optional": true
+      }
+    ]
+  },
+  "frontend": {
+    "dir": "apps/web",
+    "platform": "vercel",
+    "framework": "nextjs",
+    "env": [
+      {
+        "name": "NEXT_PUBLIC_API_URL",
+        "fromBackendUrl": true,
+        "prompt": "バックエンド API の URL"
+      }
+    ]
+  },
+  "wiring": {
+    "backendAllowedOriginVar": "ALLOWED_ORIGIN"
+  }
+}
