@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { resolve } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { run } from "../lib/exec.js";
@@ -10,7 +10,7 @@ import type { StepContext } from "./context.js";
  * この URL は次の wire-up で Worker の CORS 許可オリジンに登録される。
  */
 export async function vercelDeploy(ctx: StepContext): Promise<void> {
-  const frontendDir = join(ctx.repoDir, ctx.config.frontend.dir);
+  const frontendDir = resolve(ctx.repoDir, ctx.config.frontend.dir);
   p.log.step(pc.bgBlack(pc.white(" フロントをデプロイ ")));
 
   const result = await run("npx vercel deploy --prod --yes", ctx.mode, {

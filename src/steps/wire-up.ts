@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { resolve } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { run } from "../lib/exec.js";
@@ -14,7 +14,7 @@ import type { StepContext } from "./context.js";
  */
 export async function wireUp(ctx: StepContext): Promise<void> {
   const frontendUrl = ctx.state.frontendUrl;
-  const backendDir = join(ctx.repoDir, ctx.config.backend.dir);
+  const backendDir = resolve(ctx.repoDir, ctx.config.backend.dir);
   const originVar = ctx.config.wiring.backendAllowedOriginVar;
 
   p.log.step(pc.bgMagenta(pc.white(" バック⇄フロント連携（CORS） ")));

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { resolve } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { runDoctor } from "./commands/doctor.js";
@@ -9,17 +10,38 @@ import { ConfigError } from "./lib/config.js";
 /**
  * SaaS ローンチ・ハーネス CLI エントリ。
  *
- *   saas-launch setup          デプロイを最初から/続きから進める（既定）
- *   saas-launch setup --manual コマンドを自動実行せず案内のみ
- *   saas-launch status         今の進捗を表示する
- *   saas-launch doctor         連携不足を診断する
- *   saas-launch doctor --json  診断結果を JSON で出力（Skill 用）
+ *   saas-launch setup           デプロイを最初から/続きから進める（既定）
+ *   saas-launch setup --manual  コマンドを自動実行せず案内のみ
+ *   saas-launch status          今の進捗を表示する
+ *   saas-launch doctor          連携不足を診断する
+ *   saas-launch doctor --json   診断結果を JSON で出力（Skill 用）
+ *
+ * -C / --project <dir> で「対象アプリのディレクトリ」を指定できる。
+ * これにより、このツール(B)の中にいながら、別の場所にある自分のアプリ(A)を
+ * デプロイ対象にできる（config と状態ファイルも A 側に置かれる）。
  */
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
-  const command = argv[0] ?? "setup";
-  const repoDir = process.cwd();
-  const flags = new Set(argv.slice(1).filter((a) => a.startsWith("--")));
+
+  // -C <dir> / --project <dir> / --project=<dir> で対象アプリのルートを指定
+  let repoDir = process.cwd();
+  const rest: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "-C" || a === "--project") {
+      const val = argv[++i];
+      if (val) repoDir = resolve(process.cwd(), val);
+      continue;
+    }
+    if (a.startsWith("--project=")) {
+      repoDir = resolve(process.cwd(), a.slice("--project=".length));
+      continue;
+    }
+    rest.push(a);
+  }
+
+  const command = rest[0] ?? "setup";
+  const flags = new Set(rest.slice(1).filter((a) => a.startsWith("--")));
 
   switch (command) {
     case "setup":
@@ -67,7 +89,15 @@ function printHelp(): void {
       "  saas-launch doctor --json    診断結果を JSON で出力（Claude Code の Skill 用）",
       "  saas-launch help             このヘルプを表示",
       "",
+      pc.bold("オプション:"),
+      "  -C, --project <dir>          対象アプリのディレクトリを指定する。",
+      "                               このツールの中にいながら、別の場所にある自分の",
+      "                               アプリをデプロイ対象にできる。config と状態ファイルも",
+      "                               そのディレクトリに置かれる。",
+      "                               例: saas-launch -C ../my-app setup",
+      "",
       pc.dim("設定は harness.config.json（無ければ setup 時に対話ウィザードで作成）。"),
+      pc.dim("-C を省略すると、コマンドを実行したディレクトリが対象になります。"),
       "",
     ].join("\n"),
   );

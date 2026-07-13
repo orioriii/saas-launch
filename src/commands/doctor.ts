@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { resolve } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { loadConfig, type HarnessConfig } from "../lib/config.js";
@@ -149,7 +149,7 @@ async function checkSecrets(
     };
   }
 
-  const backendDir = join(repoDir, config.backend.dir);
+  const backendDir = resolve(repoDir, config.backend.dir);
   const res = await tryRun("npx wrangler secret list", { cwd: backendDir });
   if (!res.ok) {
     return {
@@ -246,7 +246,7 @@ async function checkFrontendEnv(
     };
   }
 
-  const frontendDir = join(repoDir, config.frontend.dir);
+  const frontendDir = resolve(repoDir, config.frontend.dir);
   const res = await tryRun("npx vercel env ls production", { cwd: frontendDir });
   if (!res.ok) {
     return {

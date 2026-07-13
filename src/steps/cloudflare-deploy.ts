@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { resolve } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { run } from "../lib/exec.js";
@@ -10,7 +10,7 @@ import type { StepContext } from "./context.js";
  * URL はフロント側の環境変数と CORS 連携で使うため最重要。
  */
 export async function cloudflareDeploy(ctx: StepContext): Promise<void> {
-  const backendDir = join(ctx.repoDir, ctx.config.backend.dir);
+  const backendDir = resolve(ctx.repoDir, ctx.config.backend.dir);
   p.log.step(pc.bgCyan(pc.black(" バックエンドをデプロイ ")));
 
   const result = await run(ctx.config.backend.deployCommand, ctx.mode, {

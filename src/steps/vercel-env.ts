@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { resolve } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { run, tryRun } from "../lib/exec.js";
@@ -19,7 +19,7 @@ export async function vercelEnv(ctx: StepContext): Promise<void> {
     return;
   }
 
-  const frontendDir = join(ctx.repoDir, ctx.config.frontend.dir);
+  const frontendDir = resolve(ctx.repoDir, ctx.config.frontend.dir);
   p.log.step(pc.bgBlack(pc.white(" フロント環境変数の設定 ")));
 
   // 初回はプロジェクトを Vercel にリンクしておく（既にリンク済みなら無視される）

@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { resolve } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { run } from "../lib/exec.js";
@@ -24,7 +24,7 @@ export async function cloudflareD1(ctx: StepContext): Promise<void> {
   }
 
   const dbName = d1.databaseName ?? `${ctx.config.projectName}-db`;
-  const backendDir = join(ctx.repoDir, ctx.config.backend.dir);
+  const backendDir = resolve(ctx.repoDir, ctx.config.backend.dir);
 
   p.log.step(pc.bgCyan(pc.black(" D1 データベース作成 ")));
 

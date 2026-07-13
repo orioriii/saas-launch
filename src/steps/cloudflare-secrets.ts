@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { resolve } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { run } from "../lib/exec.js";
@@ -18,7 +18,7 @@ export async function cloudflareSecrets(ctx: StepContext): Promise<void> {
     return;
   }
 
-  const backendDir = join(ctx.repoDir, ctx.config.backend.dir);
+  const backendDir = resolve(ctx.repoDir, ctx.config.backend.dir);
   p.log.step(pc.bgCyan(pc.black(" シークレット設定（APIキー等） ")));
 
   for (const secret of secrets) {
