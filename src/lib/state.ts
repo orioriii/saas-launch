@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -19,8 +19,15 @@ export interface SetupState {
   frontendUrl?: string;
   /** D1 データベースID（作成済みの場合） */
   d1DatabaseId?: string;
-  /** ヒアリング済みの設定値（キー: シークレット名/環境変数名） */
+  /**
+   * ヒアリング済みの設定値（キー: 環境変数名）。
+   * 注意: ここには URL 等の「秘密でない値」だけを入れる。
+   * APIキー等のシークレットは平文で残さないため、値は保存せず
+   * registeredSecrets に「登録済みの名前」だけを記録する。
+   */
   collected: Record<string, string>;
+  /** wrangler secret put まで完了したシークレット名（値は保存しない） */
+  registeredSecrets: string[];
   /** 完了したステップのID一覧（順不同・履歴） */
   completedSteps: string[];
 }
@@ -39,6 +46,7 @@ export function loadState(repoDir: string): SetupState {
       const parsed = JSON.parse(readFileSync(path, "utf-8")) as Partial<SetupState>;
       return {
         collected: parsed.collected ?? {},
+        registeredSecrets: parsed.registeredSecrets ?? [],
         completedSteps: parsed.completedSteps ?? [],
         projectName: parsed.projectName,
         cloudflareAccountId: parsed.cloudflareAccountId,
@@ -54,11 +62,18 @@ export function loadState(repoDir: string): SetupState {
 }
 
 export function emptyState(): SetupState {
-  return { collected: {}, completedSteps: [] };
+  return { collected: {}, registeredSecrets: [], completedSteps: [] };
 }
 
 export function saveState(repoDir: string, state: SetupState): void {
-  writeFileSync(getStatePath(repoDir), JSON.stringify(state, null, 2) + "\n");
+  const path = getStatePath(repoDir);
+  // 個別環境の情報を含むため、所有者のみ読み書き可（0600）で保存する
+  writeFileSync(path, JSON.stringify(state, null, 2) + "\n", { mode: 0o600 });
+  try {
+    chmodSync(path, 0o600); // 既存ファイルにも権限を強制
+  } catch {
+    // Windows 等で chmod が効かない環境は best effort
+  }
 }
 
 /** 成功時に状態ファイルを削除する（次回はまっさらから始められる）。 */

@@ -35,13 +35,18 @@ export async function cloudflareMigrate(ctx: StepContext): Promise<void> {
 
   p.log.step(pc.bgCyan(pc.black(" D1 スキーマ適用（テーブル作成） ")));
 
-  await run(`npx wrangler d1 execute ${dbName} --file=${schemaAbs} --remote --yes`, ctx.mode, {
-    cwd: backendDir,
-    inherit: true,
-    help:
-      "D1 データベースが作成済みで、wrangler.toml に database_id が設定されているか確認してください。\n" +
-      "まだの場合は、先に D1 作成ステップを完了してください。",
-  });
+  // 配列形式で渡す（パスに空白があっても壊れず、値が引数に化けない）
+  await run(
+    ["npx", "wrangler", "d1", "execute", dbName, `--file=${schemaAbs}`, "--remote", "--yes"],
+    ctx.mode,
+    {
+      cwd: backendDir,
+      inherit: true,
+      help:
+        "D1 データベースが作成済みで、wrangler.toml に database_id が設定されているか確認してください。\n" +
+        "まだの場合は、先に D1 作成ステップを完了してください。",
+    },
+  );
 
   p.log.success(`D1 スキーマを適用しました（${dbName}）`);
   ctx.save();

@@ -11,9 +11,10 @@
 // 必要な環境変数: ALLOWED_ORIGIN, RESEND_API_KEY, EMAIL_FROM （任意: APP_URL）
 import { Hono } from "hono";
 import { nowSec, randomId, randomToken, sha256Hex } from "./crypto-utils";
-import { corsHeaders, handlePreflight } from "./cors";
+import { corsHeaders, handlePreflight, isTrustedOrigin } from "./cors";
 import { sendVerificationEmail } from "./email";
 import { hashPassword, verifyPassword } from "./password";
+import { checkRateLimit, clearRateLimit, clientIp } from "./rate-limit";
 import {
   SESSION_COOKIE,
   buildSessionCookie,
@@ -35,30 +36,60 @@ export interface AuthBindings {
 
 const TOKEN_TTL = 60 * 60 * 24; // 確認トークン24時間
 const MIN_PASSWORD = 8;
+// 上限が無いと巨大な文字列で PBKDF2 を回されて CPU を枯渇させられる（DoS）ため制限する
+const MAX_PASSWORD = 200;
+const MAX_EMAIL = 254; // RFC 上のメールアドレス最大長
+
+// レート制限（固定ウィンドウ）。必要に応じて調整可。
+const REGISTER_IP_LIMIT = { limit: 10, windowSec: 60 * 60 }; // 登録: IP毎 10回/時（メール爆撃対策）
+const LOGIN_IP_LIMIT = { limit: 30, windowSec: 15 * 60 }; // ログイン: IP毎 30回/15分
+const LOGIN_EMAIL_LIMIT = { limit: 10, windowSec: 15 * 60 }; // ログイン: 宛先毎 10回/15分
 
 export function registerAuthRoutes(app: Hono<{ Bindings: AuthBindings }>): void {
-  // すべての /auth/* に CORS を付与
+  // すべての /auth/* に CORS・CSRF 検証・キャッシュ禁止を適用
   app.use("/auth/*", async (c, next) => {
     if (c.req.method === "OPTIONS") return handlePreflight(c.req.raw, c.env);
+    // CSRF 対策: 状態を変えるメソッドは、許可オリジン以外のブラウザ送信を拒否する
+    if (c.req.method !== "GET" && !isTrustedOrigin(c.req.raw, c.env)) {
+      return c.json({ error: "許可されていないオリジンからのリクエストです" }, 403);
+    }
     await next();
+    // 認証応答（Set-Cookie 等）を共有キャッシュに残さない
+    c.header("Cache-Control", "no-store");
     for (const [k, v] of corsHeaders(c.req.raw, c.env)) c.header(k, v);
   });
 
   // 新規登録：ユーザー作成（未確認）→ 確認メール送信
   app.post("/auth/register", async (c) => {
+    const db = c.env.DB;
+
+    const rl = await checkRateLimit(
+      db,
+      `register:ip:${clientIp(c.req.raw)}`,
+      REGISTER_IP_LIMIT.limit,
+      REGISTER_IP_LIMIT.windowSec,
+    );
+    if (rl.limited) {
+      return c.json({ error: "試行回数が多すぎます。しばらくしてからお試しください。" }, 429);
+    }
+
     const { email, password } = await readCredentials(c.req.raw);
     if (!isValidEmail(email)) return c.json({ error: "メールアドレスの形式が正しくありません" }, 400);
     if (password.length < MIN_PASSWORD)
       return c.json({ error: `パスワードは${MIN_PASSWORD}文字以上にしてください` }, 400);
+    if (password.length > MAX_PASSWORD)
+      return c.json({ error: `パスワードは${MAX_PASSWORD}文字以下にしてください` }, 400);
 
-    const db = c.env.DB;
     const existing = await db
       .prepare("SELECT id FROM users WHERE email = ?")
       .bind(email)
       .first<{ id: string }>();
 
     // ユーザー列挙を防ぐため、既存でも同じ「送信しました」応答を返す。
-    if (!existing) {
+    if (existing) {
+      // 応答時間の差からも既存かどうかを悟らせないよう、同じコストのハッシュ計算を行う
+      await hashPassword(password);
+    } else {
       const id = randomId();
       const passwordHash = await hashPassword(password);
       await db
@@ -97,8 +128,33 @@ export function registerAuthRoutes(app: Hono<{ Bindings: AuthBindings }>): void 
 
   // ログイン：確認済み＋パスワード一致でセッション発行
   app.post("/auth/login", async (c) => {
-    const { email, password } = await readCredentials(c.req.raw);
     const db = c.env.DB;
+    const { email, password } = await readCredentials(c.req.raw);
+
+    // ブルートフォース対策：IP 単位＋アカウント（メール）単位の両方で制限
+    const [byIp, byEmail] = await Promise.all([
+      checkRateLimit(
+        db,
+        `login:ip:${clientIp(c.req.raw)}`,
+        LOGIN_IP_LIMIT.limit,
+        LOGIN_IP_LIMIT.windowSec,
+      ),
+      checkRateLimit(
+        db,
+        `login:email:${email}`,
+        LOGIN_EMAIL_LIMIT.limit,
+        LOGIN_EMAIL_LIMIT.windowSec,
+      ),
+    ]);
+    if (byIp.limited || byEmail.limited) {
+      return c.json({ error: "試行回数が多すぎます。しばらくしてからお試しください。" }, 429);
+    }
+
+    if (password.length > MAX_PASSWORD) {
+      // 巨大な入力はハッシュ計算前に弾く（DoS 対策）。メッセージは通常の失敗と同じにする。
+      return c.json({ error: "メールアドレスまたはパスワードが違います" }, 401);
+    }
+
     const user = await db
       .prepare("SELECT id, password_hash, email_verified FROM users WHERE email = ?")
       .bind(email)
@@ -112,6 +168,9 @@ export function registerAuthRoutes(app: Hono<{ Bindings: AuthBindings }>): void 
     if (user.email_verified !== 1) {
       return c.json({ error: "メールアドレスが未確認です。確認メールのリンクを開いてください。" }, 403);
     }
+
+    // 正常ログインできたので、このアカウントの失敗カウントをリセット
+    await clearRateLimit(db, `login:email:${email}`);
 
     const { token, expiresAt } = await createSession(db, user.id);
     c.header("Set-Cookie", buildSessionCookie(token, expiresAt));
@@ -178,6 +237,7 @@ async function readCredentials(
 }
 
 function isValidEmail(email: string): boolean {
+  if (email.length > MAX_EMAIL) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 

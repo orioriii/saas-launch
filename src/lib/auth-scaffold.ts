@@ -99,7 +99,7 @@ export function copyAuthScaffold(
   // ── backend ──
   const backendAuthDir = join(backendDir, "auth");
   mkdirSync(backendAuthDir, { recursive: true });
-  for (const f of ["crypto-utils.ts", "password.ts", "session.ts", "email.ts", "cors.ts", "routes.ts", "README.md"]) {
+  for (const f of ["crypto-utils.ts", "password.ts", "session.ts", "email.ts", "cors.ts", "rate-limit.ts", "routes.ts", "README.md"]) {
     cpSync(join(tpl, "auth/backend", f), join(backendAuthDir, f), noOverwrite);
   }
 

@@ -8,6 +8,11 @@ const ITERATIONS = 210_000;
 const KEY_LEN = 32; // bytes
 const SALT_LEN = 16; // bytes
 
+// 保存済みハッシュの反復回数として受け入れる範囲。
+// DB の行が改ざんされて極端な値になっていても、弱すぎる照合や CPU 枯渇（DoS）を防ぐ。
+const MIN_ITERATIONS = 100_000;
+const MAX_ITERATIONS = 5_000_000;
+
 /** 平文パスワード → 保存用文字列 `pbkdf2$iterations$salt$hash`。 */
 export async function hashPassword(password: string): Promise<string> {
   const salt = new Uint8Array(SALT_LEN);
@@ -24,7 +29,13 @@ export async function verifyPassword(
   const parts = stored.split("$");
   if (parts.length !== 4 || parts[0] !== "pbkdf2") return false;
   const iterations = Number.parseInt(parts[1], 10);
-  if (!Number.isFinite(iterations) || iterations <= 0) return false;
+  if (
+    !Number.isFinite(iterations) ||
+    iterations < MIN_ITERATIONS ||
+    iterations > MAX_ITERATIONS
+  ) {
+    return false;
+  }
   const salt = base64urlDecode(parts[2]);
   const expected = base64urlDecode(parts[3]);
   const actual = await pbkdf2(password, salt, iterations, expected.length);

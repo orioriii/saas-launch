@@ -58,11 +58,25 @@ export class CommandError extends Error {
 }
 
 /**
+ * コマンド指定。
+ * - string   : 空白区切りでトークン化する（固定文字列のコマンド向け。クオート未対応）
+ * - string[] : そのまま argv として使う（ユーザー入力・設定値・パス等の「値」を含む場合は必ずこちら。
+ *              シェルを介さず、値が複数の引数やフラグに化けることを防ぐ）
+ */
+export type Command = string | string[];
+
+/**
  * コマンド文字列をトークンに分解する（シンプルな空白区切り。クオートは未対応）。
  * 設定ファイル由来の deployCommand などを扱うため。
  */
-function tokenize(command: string): string[] {
+function tokenize(command: Command): string[] {
+  if (Array.isArray(command)) return command.filter(Boolean);
   return command.trim().split(/\s+/).filter(Boolean);
+}
+
+/** 表示用の1行文字列にする。 */
+function display(command: Command): string {
+  return Array.isArray(command) ? command.join(" ") : command;
 }
 
 /**
@@ -70,7 +84,7 @@ function tokenize(command: string): string[] {
  * mode="auto" は実際に実行、mode="manual" は人間に実行してもらう。
  */
 export async function run(
-  command: string,
+  command: Command,
   mode: ExecMode,
   options: RunOptions = {},
 ): Promise<RunResult> {
@@ -80,18 +94,19 @@ export async function run(
   return runAuto(command, options);
 }
 
-async function runAuto(command: string, options: RunOptions): Promise<RunResult> {
+async function runAuto(command: Command, options: RunOptions): Promise<RunResult> {
   const [file, ...args] = tokenize(command);
+  const shown = display(command);
   if (!file) {
     throw new CommandError({
-      command,
+      command: shown,
       exitCode: -1,
       stderr: "空のコマンドです",
     });
   }
 
   const spinner = p.spinner();
-  spinner.start(`実行中: ${command}`);
+  spinner.start(`実行中: ${shown}`);
   try {
     const result = await execa(file, args, {
       cwd: options.cwd,
@@ -101,14 +116,14 @@ async function runAuto(command: string, options: RunOptions): Promise<RunResult>
       stderr: "pipe",
       reject: true,
     });
-    spinner.stop(`完了: ${command}`);
+    spinner.stop(`完了: ${shown}`);
     return {
       stdout: result.stdout ?? "",
       stderr: result.stderr ?? "",
       exitCode: result.exitCode ?? 0,
     };
   } catch (error: unknown) {
-    spinner.stop(pc.red(`失敗: ${command}`));
+    spinner.stop(pc.red(`失敗: ${shown}`));
     const e = error as {
       exitCode?: number;
       stderr?: string;
@@ -123,7 +138,7 @@ async function runAuto(command: string, options: RunOptions): Promise<RunResult>
         ? `コマンド '${file}' が見つかりません。インストールされているか確認してください。`
         : e.shortMessage || "不明なエラー");
     throw new CommandError({
-      command,
+      command: shown,
       exitCode: e.exitCode ?? -1,
       stderr,
       help:
@@ -137,11 +152,11 @@ async function runAuto(command: string, options: RunOptions): Promise<RunResult>
   }
 }
 
-async function runManual(command: string, options: RunOptions): Promise<RunResult> {
+async function runManual(command: Command, options: RunOptions): Promise<RunResult> {
   const lines = [
     pc.bold("次のコマンドを、あなたのターミナルで実行してください:"),
     "",
-    pc.cyan(`  ${command}`),
+    pc.cyan(`  ${display(command)}`),
   ];
   if (options.cwd) {
     lines.push("", pc.dim(`（実行ディレクトリ: ${options.cwd}）`));
@@ -157,7 +172,7 @@ async function runManual(command: string, options: RunOptions): Promise<RunResul
   });
   if (p.isCancel(done) || !done) {
     throw new CommandError({
-      command,
+      command: display(command),
       exitCode: 1,
       stderr: "ユーザーがコマンド未完了と回答しました",
       help:
@@ -173,7 +188,7 @@ async function runManual(command: string, options: RunOptions): Promise<RunResul
  * 成功/失敗と stdout をまとめて返す。
  */
 export async function tryRun(
-  command: string,
+  command: Command,
   options: RunOptions = {},
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   const [file, ...args] = tokenize(command);

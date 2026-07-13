@@ -73,7 +73,9 @@ export function renderProgressBoard(
 function formatRequirement(req: string, state: SetupState): string {
   // "NAME(自動)" のような表記はそのまま
   const bareName = req.replace(/\(.*\)$/, "");
-  const collected = state.collected[bareName] !== undefined;
+  const collected =
+    state.collected[bareName] !== undefined ||
+    state.registeredSecrets.includes(bareName);
   if (req.includes("(自動)")) return pc.dim(req);
   return collected ? pc.dim(`${req} ✓`) : pc.yellow(req);
 }

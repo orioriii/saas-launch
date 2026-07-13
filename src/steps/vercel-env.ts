@@ -55,9 +55,11 @@ export async function vercelEnv(ctx: StepContext): Promise<void> {
     }
 
     // 既存の同名 env があると add が失敗するので、一度 rm を試みてから add する
-    await tryRun(`npx vercel env rm ${env.name} production -y`, { cwd: frontendDir });
+    await tryRun(["npx", "vercel", "env", "rm", env.name, "production", "-y"], {
+      cwd: frontendDir,
+    });
 
-    await run(`npx vercel env add ${env.name} production`, ctx.mode, {
+    await run(["npx", "vercel", "env", "add", env.name, "production"], ctx.mode, {
       cwd: frontendDir,
       stdin: value,
       hint:
@@ -78,7 +80,7 @@ async function linkProject(ctx: StepContext, frontendDir: string): Promise<void>
   const linked = await tryRun("npx vercel project ls", { cwd: frontendDir });
   // link 済みかどうかの厳密判定は難しいので、link を冪等に実行する
   await run(
-    `npx vercel link --yes --project ${sanitizeProjectName(ctx.config.projectName)}`,
+    ["npx", "vercel", "link", "--yes", "--project", sanitizeProjectName(ctx.config.projectName)],
     ctx.mode,
     {
       cwd: frontendDir,

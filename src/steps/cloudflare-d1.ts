@@ -28,7 +28,7 @@ export async function cloudflareD1(ctx: StepContext): Promise<void> {
 
   p.log.step(pc.bgCyan(pc.black(" D1 データベース作成 ")));
 
-  const result = await run(`npx wrangler d1 create ${dbName}`, ctx.mode, {
+  const result = await run(["npx", "wrangler", "d1", "create", dbName], ctx.mode, {
     cwd: backendDir,
     help:
       "同名の D1 が既にある場合はこのエラーになります。\n" +

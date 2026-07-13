@@ -24,3 +24,10 @@ CREATE TABLE IF NOT EXISTS verification_tokens (
   expires_at INTEGER NOT NULL,               -- UNIX 秒（既定24時間）
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- レート制限（ブルートフォース・メール爆撃対策）。rate-limit.ts が使用。
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key      TEXT PRIMARY KEY,                 -- 例: login:ip:1.2.3.4
+  count    INTEGER NOT NULL,                 -- ウィンドウ内の試行回数
+  reset_at INTEGER NOT NULL                  -- ウィンドウ終了の UNIX 秒
+);

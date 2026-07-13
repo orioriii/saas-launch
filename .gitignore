@@ -13,6 +13,12 @@ harness.config.json
 .env.*
 !.env.example
 
+# ローカルのシークレット・CLI 資格情報（対象アプリ側でも誤コミットしないこと）
+.dev.vars
+.dev.vars.*
+.wrangler/
+.vercel/
+
 # OS/エディタ
 .DS_Store
 *.log

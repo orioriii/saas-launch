@@ -9,9 +9,22 @@ import { z } from "zod";
  * すべてこの設定ファイルで宣言する。ここからデプロイのステップ配列が自動生成される。
  */
 
+/**
+ * 環境変数・シークレット名の形式（英字/アンダースコア始まり、英数字とアンダースコアのみ）。
+ * ここで縛ることで、設定値がそのままコマンド引数になっても余計なフラグ等を注入できない。
+ */
+const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const ENV_NAME_MSG =
+  "名前は英字またはアンダースコアで始まり、英数字とアンダースコアのみ使えます（例: API_KEY）";
+
+/** プロジェクト名・D1 データベース名の形式（英数字始まり、英数字・ドット・ハイフン・アンダースコア）。 */
+const RESOURCE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const RESOURCE_NAME_MSG =
+  "英数字で始まり、英数字・ドット・ハイフン・アンダースコアのみ使えます（空白や記号は不可）";
+
 const SecretSchema = z.object({
   /** wrangler secret put で登録する名前（例: API_KEY） */
-  name: z.string().min(1),
+  name: z.string().min(1).regex(ENV_NAME_RE, ENV_NAME_MSG),
   /** 画面に出すヒアリング文言 */
   prompt: z.string().optional(),
   /** どこで取得するかの案内（例: Stripe ダッシュボード → 開発者 → APIキー） */
@@ -24,9 +37,9 @@ const SecretSchema = z.object({
 
 const D1Schema = z.object({
   enabled: z.boolean().default(false),
-  databaseName: z.string().optional(),
+  databaseName: z.string().regex(RESOURCE_NAME_RE, RESOURCE_NAME_MSG).optional(),
   /** wrangler.toml 上の binding 名（既定 DB） */
-  wranglerBinding: z.string().default("DB"),
+  wranglerBinding: z.string().regex(ENV_NAME_RE, ENV_NAME_MSG).default("DB"),
   /**
    * 適用する SQL スキーマ/マイグレーションファイル（repoDir からの相対パス）。
    * 指定すると cloudflare-migrate ステップが `wrangler d1 execute --file` で流す。
@@ -70,7 +83,7 @@ const BackendSchema = z.object({
 });
 
 const FrontendEnvSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).regex(ENV_NAME_RE, ENV_NAME_MSG),
   prompt: z.string().optional(),
   howto: z.string().optional(),
   /** true の場合、バックエンドのデプロイ URL を自動的に値として使う */
@@ -90,12 +103,15 @@ const WiringSchema = z
      * バックエンド側で「許可するフロントのオリジン」を保持するシークレット/変数名。
      * ここに Vercel の本番 URL を登録して CORS を疎通させる。
      */
-    backendAllowedOriginVar: z.string().default("ALLOWED_ORIGIN"),
+    backendAllowedOriginVar: z
+      .string()
+      .regex(ENV_NAME_RE, ENV_NAME_MSG)
+      .default("ALLOWED_ORIGIN"),
   })
   .default({ backendAllowedOriginVar: "ALLOWED_ORIGIN" });
 
 export const HarnessConfigSchema = z.object({
-  projectName: z.string().min(1),
+  projectName: z.string().min(1).regex(RESOURCE_NAME_RE, RESOURCE_NAME_MSG),
   backend: BackendSchema,
   frontend: FrontendSchema,
   wiring: WiringSchema,

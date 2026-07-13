@@ -40,7 +40,7 @@ export async function wireUp(ctx: StepContext): Promise<void> {
     ].join("\n"),
   );
 
-  await run(`npx wrangler secret put ${originVar}`, ctx.mode, {
+  await run(["npx", "wrangler", "secret", "put", originVar], ctx.mode, {
     cwd: backendDir,
     stdin: frontendUrl,
     hint:

@@ -29,6 +29,11 @@ export interface AskSecretOptions {
   optional?: boolean;
   /** マスク表示（APIキー等） */
   mask?: boolean;
+  /**
+   * false の場合、値を state.collected に保存しない（再開時は再入力になる）。
+   * APIキー等のシークレットを平文でディスクに残さないために使う。既定 true。
+   */
+  persist?: boolean;
 }
 
 /**
@@ -39,8 +44,9 @@ export async function askValue(
   state: SetupState,
   opts: AskSecretOptions,
 ): Promise<string | undefined> {
+  const persist = opts.persist !== false;
   const existing = state.collected[opts.name];
-  if (existing !== undefined && existing !== "") {
+  if (persist && existing !== undefined && existing !== "") {
     p.log.success(`${opts.name}: 入力済み（前回の値を使用）`);
     return existing;
   }
@@ -80,13 +86,22 @@ export async function askValue(
   if (finalValue === "" && opts.generate) {
     finalValue = generateSecret();
     p.log.success(`${opts.name}: 自動生成しました`);
+    p.log.message(
+      [
+        pc.bold(`生成された ${opts.name}:`),
+        `  ${pc.cyan(finalValue)}`,
+        pc.dim("  この値はファイルに保存されません。必要ならパスワードマネージャ等に控えてください。"),
+      ].join("\n"),
+    );
   }
 
   if (finalValue === "" && opts.optional) {
     return undefined; // 任意項目で未入力 → スキップ
   }
 
-  state.collected[opts.name] = finalValue;
+  if (persist) {
+    state.collected[opts.name] = finalValue;
+  }
   return finalValue;
 }
 

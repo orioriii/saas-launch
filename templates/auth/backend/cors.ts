@@ -12,6 +12,23 @@ export function allowedOrigins(env: { ALLOWED_ORIGIN?: string }): string[] {
     .filter(Boolean);
 }
 
+/**
+ * 状態を変えるリクエスト（POST 等）の CSRF 対策。
+ * Origin ヘッダが付いている場合、許可オリジンか Worker 自身のオリジンでなければ拒否する。
+ * （Cookie が SameSite=None のため、Origin 検証で「悪意あるサイトからの送信」を止める。
+ *   Origin が無いリクエストは curl やサーバー間通信なのでブラウザ CSRF の対象外として許可。）
+ */
+export function isTrustedOrigin(
+  request: Request,
+  env: { ALLOWED_ORIGIN?: string },
+): boolean {
+  const origin = (request.headers.get("Origin") ?? "").replace(/\/+$/, "");
+  if (!origin) return true; // Origin 無し = ブラウザのクロスサイト送信ではない
+  if (origin === "null") return false; // サンドボックス等の不透明オリジンは拒否
+  const self = new URL(request.url).origin;
+  return origin === self || allowedOrigins(env).includes(origin);
+}
+
 /** リクエストの Origin が許可されていれば、それを echo した CORS ヘッダを返す。 */
 export function corsHeaders(
   request: Request,
